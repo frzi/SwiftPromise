@@ -6,6 +6,9 @@ Promises are dang great in JavaScript. What's dang great as well is Swift! So wi
 ## Install
 Just copy the Promise.swift file to your Xcode project. Yeah, that's it! The beauty of Swift!
 
+## TODO
+Make the class Swift Package Manager ready. But not until `Dispatch` becomes available on Linux.
+
 ## Usage
 The Promise class is declared with a generic type. 
 ```swift

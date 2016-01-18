@@ -2,18 +2,18 @@
  *  Promise.swift
  *  v1.1
  *
+ *  Promise class for Swift.
+ *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
+ *  A Promise holds on to a value of type T.
+ *  Promises are executed in async mode. Whereas resolvers and rejections are executed on the main thread.
+ *
  *  Created by Freek Zijlmans, 2016
  */
 
-import Foundation
+
+import Dispatch
 
 
-/**
- * Promise class for Swift.
- * Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
- * A Promise holds on to a value of type T.
- * Promises are executed in async mode. Whereas resolvers and rejections are executed on the main thread.
- */
 class Promise<T> {
     
     typealias Resolve = (T?) -> ()
@@ -32,7 +32,6 @@ class Promise<T> {
             promise(self.resolveProxy, self.rejectProxy)
         }
     }
-    
     
     
     // MARK: - Private proxies.
@@ -62,7 +61,6 @@ class Promise<T> {
     }
     
     
-    
     // MARK: - Then / fail
     /// Add resolve handler.
     func then(resolve: Resolve) -> Self {
@@ -90,7 +88,7 @@ class Promise<T> {
             fails.append(reject)
         }
         else if rejected {
-            dispatch_async(dispatch_get_main_queue()){
+            dispatch_async(dispatch_get_main_queue()) {
                 reject(self.error)
             }
         }
@@ -102,7 +100,6 @@ class Promise<T> {
         resolvers.removeAll()
         fails.removeAll()
     }
-    
     
     
     // MARK: - Static
@@ -170,7 +167,6 @@ class Promise<T> {
     }
     
     
-    
     // MARK: - Misc.
     deinit {
         unbindAll()
@@ -179,4 +175,3 @@ class Promise<T> {
     }
     
 }
-
