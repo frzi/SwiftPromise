@@ -22,7 +22,7 @@ A Promise keeps hold of a value of type `T`, which is the value the Promise (you
 You initialize a Promise with a type and a function (closure) of type `(Resolve, Reject) -> ()`.
 ```swift
 let promise = Promise<String> { resolve, reject in 
-  // Some heavy task.
+// Some heavy task.
 }
 ```
 
@@ -42,11 +42,11 @@ You can apply a Resolver using the Promise's instance method `.then(T?)`.
 To apply a Rejector, use the `.fail(ErrorType?)` method.
 ```swift
 Promise<Any> { resolve, reject in 
-  // Some heavy task.
+	// Some heavy task.
 }.then { value in
-  // Do something with value.   
+	// Do something with value.   
 }.fail { error in
-  // Respond to the failure.
+	// Respond to the failure.
 }
 ```
 The methods of Promises are chainable! :-)
@@ -57,17 +57,17 @@ The methods of Promises are chainable! :-)
 The static `all([Promise])` method returns a new Promise watching all Promises in the given array. An *all* Promise fails the moment one of its Promises calls its rejector. When all Promises succeed, the resolver is parsed an array of `[T?]` containing all the returned values of the Promises.
 ```swift
 func createDownloadPromise(url: String) -> Promise<NSData> {
-  // ...
+	// ...
 }
 
 Promise.all([
-  createDownloadPromise("hello.jpg"),
-  createDownloadPromise("world.jpg")
+	createDownloadPromise("hello.jpg"),
+	createDownloadPromise("world.jpg")
 ]).then{ values in
-  print("The following files have been downloaded: \(values)")
-  // Prints: Optional([Optional("hello.jpg"), Optional("world.jpg")])
+	print("The following files have been downloaded: \(values)")
+	// Prints: Optional([Optional("hello.jpg"), Optional("world.jpg")])
 }.fail { _ in 
-  print("Uh-oh! At least one Promise failed!")
+	print("Uh-oh! At least one Promise failed!")
 }
 ```
 
@@ -83,22 +83,22 @@ Here's an example of a Promise downloading an image. The example uses NSURLSessi
 var image: UIImage?
 
 Promise<NSData> { resolve, reject in
-  let request = NSURLRequest(URL: "someimage.jpg", cachePolicy: .ReloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 10.0)
-  let session = NSURLSession.sharedSession()
-  session.dataTaskWithRequest(request) { data, response, err in 
-    if let dat = data, img = UIImage(data: dat) {
-      resolve(dat)
-    }
-    else {
-      reject(err)
-    }
-  }.resume()
+	let request = NSURLRequest(URL: "someimage.jpg", cachePolicy: .ReloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 10.0)
+	let session = NSURLSession.sharedSession()
+	session.dataTaskWithRequest(request) { data, response, err in 
+		if let dat = data, img = UIImage(data: dat) {
+			resolve(dat)
+		}
+		else {
+			reject(err)
+		}
+	}.resume()
 }.then{ data in
-  data.writeToFile("imagesFolder")
-  image = UIImage(data: data)
+	data.writeToFile("imagesFolder")
+	image = UIImage(data: data)
 }.fail{ err in 
-  if let error = err {
-    print("Trouble downloading image. Error: \(error)")
-  }
+	if let error = err {
+		print("Trouble downloading image. Error: \(error)")
+	}
 }
 ```
