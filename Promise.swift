@@ -1,6 +1,6 @@
 /**
  *  Promise.swift
- *  v1.1
+ *  v1.2.1
  *
  *  Promise class for Swift.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
@@ -10,14 +10,12 @@
  *  Created by Freek Zijlmans, 2016
  */
 
-
 import Dispatch
 
-
-class Promise<T> {
+public class Promise<T> {
     
-    typealias Resolve = (T?) -> ()
-    typealias Reject = (ErrorType?) -> ()
+    public typealias Resolve = (T?) -> ()
+    public typealias Reject = (ErrorType?) -> ()
     
     private (set) var resolvers: [Resolve] = []
     private (set) var fails: [Reject] = []
@@ -31,6 +29,12 @@ class Promise<T> {
         dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)) {
             promise(self.resolveProxy, self.rejectProxy)
         }
+    }
+    
+    deinit {
+        unbindAll()
+        value = nil
+        error = nil
     }
     
     
@@ -61,9 +65,10 @@ class Promise<T> {
     }
     
     
+    
     // MARK: - Then / fail
     /// Add resolve handler.
-    func then(resolve: Resolve) -> Self {
+    public func then(resolve: Resolve) -> Self {
         if !done {
             resolvers.append(resolve)
         }
@@ -76,14 +81,14 @@ class Promise<T> {
     }
     
     /// Add resolve and reject handler.
-    func then(resolve: Resolve, _ reject: Reject) -> Self {
+    public func then(resolve: Resolve, _ reject: Reject) -> Self {
         then(resolve)
         fail(reject)
         return self
     }
     
     /// Add reject handler.
-    func fail(reject: Reject) -> Self {
+    public func fail(reject: Reject) -> Self {
         if !done {
             fails.append(reject)
         }
@@ -96,22 +101,23 @@ class Promise<T> {
     }
     
     /// Unbind all resolve and reject handlers.
-    func unbindAll() {
+    public func unbindAll() {
         resolvers.removeAll()
         fails.removeAll()
     }
     
+
     
     // MARK: - Static
     /// Returns a Promise that watches multiple promises. Resolvers return an array of values.
-    static func all(promises: [Promise]) -> Promise<[Any?]> {
+    public static func all(promises: [Promise]) -> Promise<[Any?]> {
         return Promise<[Any?]> { resolve, reject in
             var success = 0
-            var returns = [Any?]()
+            var returns = [Any?](count: promises.count, repeatedValue: nil)
             
-            func done(incoming: Any?) {
+            func done(index: Int, _ incoming: Any?) {
                 success += 1
-                returns.append(incoming)
+                returns[index] = incoming
                 if success == promises.count {
                     resolve(returns)
                 }
@@ -124,14 +130,16 @@ class Promise<T> {
                 reject(error)
             }
             
-            for p in promises {
-                p.then(done, failed)
+            for (index, promise) in promises.enumerate() {
+                promise.then({ obj in
+                    done(index, obj)
+                }, failed)
             }
         }
     }
     
     /// Race for the first settled Promise.
-    static func race(promises: [Promise]) -> Promise<Any> {
+    public static func race(promises: [Promise]) -> Promise<Any> {
         return Promise<Any> { resolve, reject in
             var settled = false
             
@@ -146,32 +154,24 @@ class Promise<T> {
                 }
             }
             
-            for p in promises {
-                p.then(done, done)
+            for promise in promises {
+                promise.then(done, done)
             }
         }
     }
     
     /// Returns a Promise that resolves with the given value.
-    static func resolve(value: T) -> Promise<T> {
+    public static func resolve(value: T) -> Promise<T> {
         return Promise<T> { res, _ in
             res(value)
         }
     }
     
     /// Returns a Promise that rejects with the given error.
-    static func reject(reason: ErrorType?) -> Promise<T> {
+    public static func reject(reason: ErrorType?) -> Promise<T> {
         return Promise<T> { _, rej in
             rej(reason)
         }
-    }
-    
-    
-    // MARK: - Misc.
-    deinit {
-        unbindAll()
-        value = nil
-        error = nil
     }
     
 }
