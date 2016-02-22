@@ -72,10 +72,10 @@ public class Promise<T> {
     // MARK: - Then / fail
     /// Add resolve handler.
     public func then(resolve: Resolve) -> Self {
-        if status == .Resolved {
+        if status == .Unresolved {
             resolvers.append(resolve)
         }
-        else if status == .Rejected {
+        else if status == .Resolved {
             dispatch_async(dispatch_get_main_queue()) {
                 resolve(self.value)
             }
@@ -92,7 +92,7 @@ public class Promise<T> {
     
     /// Add reject handler.
     public func fail(reject: Reject) -> Self {
-        if status == .Resolved {
+        if status == .Unresolved {
             fails.append(reject)
         }
         else if status == .Rejected {
@@ -131,7 +131,7 @@ public class Promise<T> {
                 }
                 reject(error)
             }
-            
+                        
             for (index, promise) in promises.enumerate() {
                 promise.then({ obj in
                     done(index, obj)
