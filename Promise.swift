@@ -1,6 +1,6 @@
 /**
  *  Promise.swift
- *  v1.2.1
+ *  v1.2.2
  *
  *  Promise class for Swift.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
@@ -12,6 +12,12 @@
 
 import Dispatch
 
+
+public enum PromiseStatus {
+    case Unresolved, Resolved, Rejected
+}
+
+
 public class Promise<T> {
     
     public typealias Resolve = (T?) -> ()
@@ -19,8 +25,7 @@ public class Promise<T> {
     
     private (set) var resolvers: [Resolve] = []
     private (set) var fails: [Reject] = []
-    private (set) var rejected = false
-    private (set) var done = false
+    private (set) var status = PromiseStatus.Unresolved
     
     private var value: T?
     private var error: ErrorType?
@@ -40,7 +45,7 @@ public class Promise<T> {
     
     // MARK: - Private proxies.
     private func resolveProxy(incoming: T?) {
-        done = true
+        status = .Resolved
         value = incoming
         
         dispatch_async(dispatch_get_main_queue()) {
@@ -52,8 +57,7 @@ public class Promise<T> {
     }
     
     private func rejectProxy(error: ErrorType?) {
-        done = true
-        rejected = true
+        status = .Rejected
         self.error = error
         
         dispatch_async(dispatch_get_main_queue()) {
@@ -65,14 +69,13 @@ public class Promise<T> {
     }
     
     
-    
     // MARK: - Then / fail
     /// Add resolve handler.
     public func then(resolve: Resolve) -> Self {
-        if !done {
+        if status == .Resolved {
             resolvers.append(resolve)
         }
-        else if !rejected {
+        else if status == .Rejected {
             dispatch_async(dispatch_get_main_queue()) {
                 resolve(self.value)
             }
@@ -89,10 +92,10 @@ public class Promise<T> {
     
     /// Add reject handler.
     public func fail(reject: Reject) -> Self {
-        if !done {
+        if status == .Resolved {
             fails.append(reject)
         }
-        else if rejected {
+        else if status == .Rejected {
             dispatch_async(dispatch_get_main_queue()) {
                 reject(self.error)
             }
@@ -105,7 +108,6 @@ public class Promise<T> {
         resolvers.removeAll()
         fails.removeAll()
     }
-    
 
     
     // MARK: - Static
