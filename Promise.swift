@@ -74,8 +74,7 @@ public class Promise<T> {
     public func then(resolve: Resolve) -> Self {
         if status == .Unresolved {
             resolvers.append(resolve)
-        }
-        else if status == .Resolved {
+        } else if status == .Resolved {
             dispatch_async(dispatch_get_main_queue()) {
                 resolve(self.value)
             }
@@ -94,8 +93,7 @@ public class Promise<T> {
     public func fail(reject: Reject) -> Self {
         if status == .Unresolved {
             fails.append(reject)
-        }
-        else if status == .Rejected {
+        } else if status == .Rejected {
             dispatch_async(dispatch_get_main_queue()) {
                 reject(self.error)
             }
