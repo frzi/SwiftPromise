@@ -1,8 +1,8 @@
 /**
  *  Promise.swift
- *  v1.2.2
+ *  v2.0
  *
- *  Promise class for Swift.
+ *  Promise class for Swift 3.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
  *  A Promise holds on to a value of type T.
  *  Promises are executed in async mode. Whereas resolvers and rejections are executed on the main thread.
@@ -14,24 +14,24 @@ import Dispatch
 
 
 public enum PromiseStatus {
-    case Unresolved, Resolved, Rejected
+    case unresolved, resolved, rejected
 }
 
 
 public class Promise<T> {
     
     public typealias Resolve = (T?) -> ()
-    public typealias Reject = (ErrorType?) -> ()
+    public typealias Reject = (ErrorProtocol?) -> ()
     
     private (set) var resolvers: [Resolve] = []
     private (set) var fails: [Reject] = []
-    private (set) var status = PromiseStatus.Unresolved
+    private (set) var status = PromiseStatus.unresolved
     
     private var value: T?
-    private var error: ErrorType?
+    private var error: ErrorProtocol?
     
     init(_ promise: (Resolve, Reject) -> ()) {
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)) {
+        DispatchQueue.global(attributes: .qosDefault).async {
             promise(self.resolveProxy, self.rejectProxy)
         }
     }
@@ -44,11 +44,11 @@ public class Promise<T> {
     
     
     // MARK: - Private proxies.
-    private func resolveProxy(incoming: T?) {
-        status = .Resolved
+    private func resolveProxy(_ incoming: T?) {
+        status = .resolved
         value = incoming
         
-        dispatch_async(dispatch_get_main_queue()) {
+        DispatchQueue.main.async {
             for resolve in self.resolvers {
                 resolve(incoming)
             }
@@ -56,11 +56,11 @@ public class Promise<T> {
         }
     }
     
-    private func rejectProxy(error: ErrorType?) {
-        status = .Rejected
+    private func rejectProxy(_ error: ErrorProtocol?) {
+        status = .rejected
         self.error = error
         
-        dispatch_async(dispatch_get_main_queue()) {
+        DispatchQueue.main.async {
             for reject in self.fails {
                 reject(error)
             }
@@ -71,11 +71,13 @@ public class Promise<T> {
     
     // MARK: - Then / fail
     /// Add resolve handler.
-    public func then(resolve: Resolve) -> Self {
-        if status == .Unresolved {
+    @discardableResult
+    public func then(_ resolve: Resolve) -> Promise {
+        if status == .unresolved {
             resolvers.append(resolve)
-        } else if status == .Resolved {
-            dispatch_async(dispatch_get_main_queue()) {
+        }
+        else if status == .resolved {
+            DispatchQueue.main.async {
                 resolve(self.value)
             }
         }
@@ -83,18 +85,21 @@ public class Promise<T> {
     }
     
     /// Add resolve and reject handler.
-    public func then(resolve: Resolve, _ reject: Reject) -> Self {
+    @discardableResult
+    public func then(_ resolve: Resolve, _ reject: Reject) -> Promise {
         then(resolve)
         fail(reject)
         return self
     }
     
     /// Add reject handler.
-    public func fail(reject: Reject) -> Self {
-        if status == .Unresolved {
+    @discardableResult
+    public func fail(_ reject: Reject) -> Promise {
+        if status == .unresolved {
             fails.append(reject)
-        } else if status == .Rejected {
-            dispatch_async(dispatch_get_main_queue()) {
+        }
+        else if status == .rejected {
+            DispatchQueue.main.async {
                 reject(self.error)
             }
         }
@@ -106,16 +111,16 @@ public class Promise<T> {
         resolvers.removeAll()
         fails.removeAll()
     }
-
+    
     
     // MARK: - Static
     /// Returns a Promise that watches multiple promises. Resolvers return an array of values.
-    public static func all(promises: [Promise]) -> Promise<[Any?]> {
+    public static func all(_ promises: [Promise]) -> Promise<[Any?]> {
         return Promise<[Any?]> { resolve, reject in
             var success = 0
-            var returns = [Any?](count: promises.count, repeatedValue: nil)
+            var returns = [Any?](repeating: nil, count: promises.count)
             
-            func done(index: Int, _ incoming: Any?) {
+            func done(_ index: Int, _ incoming: Any?) {
                 success += 1
                 returns[index] = incoming
                 if success == promises.count {
@@ -123,14 +128,14 @@ public class Promise<T> {
                 }
             }
             
-            func failed(error: ErrorType?) {
-                for p in promises {
-                    p.unbindAll()
+            func failed(_ error: ErrorProtocol?) {
+                for promise in promises {
+                    promise.unbindAll()
                 }
                 reject(error)
             }
-                        
-            for (index, promise) in promises.enumerate() {
+            
+            for (index, promise) in promises.enumerated() {
                 promise.then({ obj in
                     done(index, obj)
                 }, failed)
@@ -139,36 +144,44 @@ public class Promise<T> {
     }
     
     /// Race for the first settled Promise.
-    public static func race(promises: [Promise]) -> Promise<Any> {
+    public static func race(_ promises: [Promise]) -> Promise<Any> {
         return Promise<Any> { resolve, reject in
             var settled = false
+            var failedCount = 0
             
-            func done(incoming: Any) {
+            func done(_ incoming: Any) {
                 if !settled {
                     settled = true
                     resolve(incoming)
                     
-                    for p in promises {
-                        p.unbindAll()
+                    for promise in promises {
+                        promise.unbindAll()
                     }
                 }
             }
             
+            func failed(_ incoming: ErrorProtocol?) {
+                failedCount += 1
+                if failedCount == promises.count {
+                    reject(incoming) // Grab the last error.
+                }
+            }
+            
             for promise in promises {
-                promise.then(done, done)
+                promise.then(done, failed)
             }
         }
     }
     
     /// Returns a Promise that resolves with the given value.
-    public static func resolve(value: T) -> Promise<T> {
+    public static func resolve(_ value: T) -> Promise<T> {
         return Promise<T> { res, _ in
             res(value)
         }
     }
     
     /// Returns a Promise that rejects with the given error.
-    public static func reject(reason: ErrorType?) -> Promise<T> {
+    public static func reject(_ reason: ErrorProtocol?) -> Promise<T> {
         return Promise<T> { _, rej in
             rej(reason)
         }
