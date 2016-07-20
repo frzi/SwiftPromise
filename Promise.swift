@@ -143,32 +143,27 @@ public class Promise<T> {
         }
     }
     
-    /// Race for the first settled Promise.
-    public static func race(_ promises: [Promise]) -> Promise<Any> {
-        return Promise<Any> { resolve, reject in
+    /// Race for the first settled Promise. Resolvers get the winning Promise.
+    public static func race(promises: [Promise<T>]) -> Promise<Promise<T>> {
+        return Promise<Promise<T>> { resolve, reject in
             var settled = false
-            var failedCount = 0
+            var failed = 0
             
-            func done(_ incoming: Any) {
-                if !settled {
-                    settled = true
-                    resolve(incoming)
-                    
-                    for promise in promises {
-                        promise.unbindAll()
-                    }
-                }
-            }
-            
-            func failed(_ incoming: ErrorProtocol?) {
-                failedCount += 1
-                if failedCount == promises.count {
-                    reject(incoming) // Grab the last error.
+            func fail(error: ErrorProtocol?) {
+                failed += 1
+                
+                if failed == promises.count && !settled {
+                    reject(nil) // All failed.
                 }
             }
             
             for promise in promises {
-                promise.then(done, failed)
+                promise.then { _ in
+                    if !settled {
+                        settled = true
+                        resolve(promise)
+                    }
+                }.fail(fail)
             }
         }
     }
