@@ -1,10 +1,10 @@
 /**
  *  Promise.swift
- *  v2.0
+ *  v2.0.1
  *
- *  Promise class for Swift 3.
+ *  Promise class for Swift.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
- *  A Promise holds on to a value of type T.
+ *  A Promise holds on to a value of type `T`.
  *  Promises are executed in async mode. Whereas resolvers and rejections are executed on the main thread.
  *
  *  Created by Freek Zijlmans, 2016
@@ -12,26 +12,24 @@
 
 import Dispatch
 
-
 public enum PromiseStatus {
     case unresolved, resolved, rejected
 }
 
-
-public class Promise<T> {
-    
+open class Promise<T> {
+   
     public typealias Resolve = (T?) -> ()
-    public typealias Reject = (ErrorProtocol?) -> ()
+    public typealias Reject = (Error?) -> ()
     
     private (set) var resolvers: [Resolve] = []
     private (set) var fails: [Reject] = []
     private (set) var status = PromiseStatus.unresolved
     
     private var value: T?
-    private var error: ErrorProtocol?
+    private var error: Error?
     
-    init(_ promise: (Resolve, Reject) -> ()) {
-        DispatchQueue.global(attributes: .qosDefault).async {
+    public init(_ promise: @escaping (Resolve, Reject) -> ()) {
+        DispatchQueue.global(qos: .default).async {
             promise(self.resolveProxy, self.rejectProxy)
         }
     }
@@ -56,7 +54,7 @@ public class Promise<T> {
         }
     }
     
-    private func rejectProxy(_ error: ErrorProtocol?) {
+    private func rejectProxy(_ error: Error?) {
         status = .rejected
         self.error = error
         
@@ -72,7 +70,7 @@ public class Promise<T> {
     // MARK: - Then / fail
     /// Add resolve handler.
     @discardableResult
-    public func then(_ resolve: Resolve) -> Promise {
+    open func then(_ resolve: Resolve) -> Self {
         if status == .unresolved {
             resolvers.append(resolve)
         }
@@ -86,7 +84,7 @@ public class Promise<T> {
     
     /// Add resolve and reject handler.
     @discardableResult
-    public func then(_ resolve: Resolve, _ reject: Reject) -> Promise {
+    open func then(_ resolve: Resolve, _ reject: Reject) -> Self {
         then(resolve)
         fail(reject)
         return self
@@ -94,7 +92,7 @@ public class Promise<T> {
     
     /// Add reject handler.
     @discardableResult
-    public func fail(_ reject: Reject) -> Promise {
+    open func fail(_ reject: Reject) -> Self {
         if status == .unresolved {
             fails.append(reject)
         }
@@ -105,18 +103,21 @@ public class Promise<T> {
         }
         return self
     }
-    
+        
     /// Unbind all resolve and reject handlers.
-    public func unbindAll() {
+    @discardableResult
+    open func unbindAll() -> Self {
         resolvers.removeAll()
         fails.removeAll()
+        return self
     }
-    
+
     
     // MARK: - Static
-    /// Returns a Promise that watches multiple promises. Resolvers return an array of values.
-    public static func all(_ promises: [Promise]) -> Promise<[Any?]> {
+    /// Returns a Promise that watches multiple promises. Resolvers get an array of values.
+    open static func all(_ promises: [Promise]) -> Promise<[Any?]> {
         return Promise<[Any?]> { resolve, reject in
+            var settled = false
             var success = 0
             var returns = [Any?](repeating: nil, count: promises.count)
             
@@ -124,17 +125,18 @@ public class Promise<T> {
                 success += 1
                 returns[index] = incoming
                 if success == promises.count {
+                    settled = true
                     resolve(returns)
                 }
             }
             
-            func failed(_ error: ErrorProtocol?) {
-                for promise in promises {
-                    promise.unbindAll()
+            func failed(_ error: Error?) {
+                if !settled {
+                    settled = true
+                    reject(error)
                 }
-                reject(error)
             }
-            
+                        
             for (index, promise) in promises.enumerated() {
                 promise.then({ obj in
                     done(index, obj)
@@ -144,12 +146,12 @@ public class Promise<T> {
     }
     
     /// Race for the first settled Promise. Resolvers get the winning Promise.
-    public static func race(promises: [Promise<T>]) -> Promise<Promise<T>> {
+    open static func race(_ promises: [Promise<T>]) -> Promise<Promise<T>> {
         return Promise<Promise<T>> { resolve, reject in
             var settled = false
             var failed = 0
             
-            func fail(error: ErrorProtocol?) {
+            func fail(_ error: Error?) {
                 failed += 1
                 
                 if failed == promises.count && !settled {
@@ -169,14 +171,14 @@ public class Promise<T> {
     }
     
     /// Returns a Promise that resolves with the given value.
-    public static func resolve(_ value: T) -> Promise<T> {
+    open static func resolve(_ value: T) -> Promise<T> {
         return Promise<T> { res, _ in
             res(value)
         }
     }
     
     /// Returns a Promise that rejects with the given error.
-    public static func reject(_ reason: ErrorProtocol?) -> Promise<T> {
+    open static func reject(_ reason: Error?) -> Promise<T> {
         return Promise<T> { _, rej in
             rej(reason)
         }
