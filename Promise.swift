@@ -71,7 +71,7 @@ open class Promise<T> {
     /// Add resolve handler.
     @discardableResult
     open func then(_ resolve: @escaping Resolve) -> Self {
-        if status == .unresolved {
+        if status == .pending {
             resolvers.append(resolve)
         }
         else if status == .resolved {
@@ -93,7 +93,7 @@ open class Promise<T> {
     /// Add reject handler.
     @discardableResult
     open func fail(_ reject: @escaping Reject) -> Self {
-        if status == .unresolved {
+        if status == .pending {
             fails.append(reject)
         }
         else if status == .rejected {
