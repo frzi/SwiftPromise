@@ -1,6 +1,6 @@
 /**
  *  Promise.swift
- *  v2.0.1
+ *  v2.1.0
  *
  *  Promise class for Swift.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
@@ -13,22 +13,22 @@
 import Dispatch
 
 public enum PromiseStatus {
-    case unresolved, resolved, rejected
+    case pending, resolved, rejected
 }
 
 open class Promise<T> {
-   
+    
     public typealias Resolve = (T?) -> ()
     public typealias Reject = (Error?) -> ()
     
     private (set) var resolvers: [Resolve] = []
     private (set) var fails: [Reject] = []
-    private (set) var status = PromiseStatus.unresolved
+    private (set) var status = PromiseStatus.pending
     
     private var value: T?
     private var error: Error?
     
-    public init(_ promise: @escaping (Resolve, Reject) -> ()) {
+    public init(_ promise: @escaping (@escaping Resolve, @escaping Reject) -> ()) {
         DispatchQueue.global(qos: .default).async {
             promise(self.resolveProxy, self.rejectProxy)
         }
@@ -70,7 +70,7 @@ open class Promise<T> {
     // MARK: - Then / fail
     /// Add resolve handler.
     @discardableResult
-    open func then(_ resolve: Resolve) -> Self {
+    open func then(_ resolve: @escaping Resolve) -> Self {
         if status == .unresolved {
             resolvers.append(resolve)
         }
@@ -84,7 +84,7 @@ open class Promise<T> {
     
     /// Add resolve and reject handler.
     @discardableResult
-    open func then(_ resolve: Resolve, _ reject: Reject) -> Self {
+    open func then(_ resolve: @escaping Resolve, _ reject: @escaping Reject) -> Self {
         then(resolve)
         fail(reject)
         return self
@@ -92,7 +92,7 @@ open class Promise<T> {
     
     /// Add reject handler.
     @discardableResult
-    open func fail(_ reject: Reject) -> Self {
+    open func fail(_ reject: @escaping Reject) -> Self {
         if status == .unresolved {
             fails.append(reject)
         }
@@ -103,7 +103,7 @@ open class Promise<T> {
         }
         return self
     }
-        
+    
     /// Unbind all resolve and reject handlers.
     @discardableResult
     open func unbindAll() -> Self {
@@ -111,7 +111,7 @@ open class Promise<T> {
         fails.removeAll()
         return self
     }
-
+    
     
     // MARK: - Static
     /// Returns a Promise that watches multiple promises. Resolvers get an array of values.
@@ -136,11 +136,11 @@ open class Promise<T> {
                     reject(error)
                 }
             }
-                        
+            
             for (index, promise) in promises.enumerated() {
                 promise.then({ obj in
                     done(index, obj)
-                }, failed)
+                    }, failed)
             }
         }
     }
@@ -165,7 +165,7 @@ open class Promise<T> {
                         settled = true
                         resolve(promise)
                     }
-                }.fail(fail)
+                    }.fail(fail)
             }
         }
     }
