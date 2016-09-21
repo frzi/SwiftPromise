@@ -140,7 +140,7 @@ open class Promise<T> {
             for (index, promise) in promises.enumerated() {
                 promise.then({ obj in
                     done(index, obj)
-                    }, failed)
+                }, failed)
             }
         }
     }
@@ -165,7 +165,7 @@ open class Promise<T> {
                         settled = true
                         resolve(promise)
                     }
-                    }.fail(fail)
+                }.fail(fail)
             }
         }
     }
