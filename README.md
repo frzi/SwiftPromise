@@ -1,6 +1,8 @@
 Promises in Swift
 =================
 
+[![Swift Version](https://img.shields.io/badge/swift-3.0-orange.svg)](https://swift.org)
+
 Promises are dang great in JavaScript. What's dang great as well is Swift! So with that in mind, I decided to try and replicate Promises in Swift. Trying my best to stay close to the [Promises/A+](https://promisesaplus.com/) specs. There are plenty of other Promise and Future frameworks for Swift out there already. Some quite extensive, some pretty simple. Mine is of the simple variance.
 
 ## Install
