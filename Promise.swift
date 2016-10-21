@@ -1,6 +1,6 @@
 /**
  *  Promise.swift
- *  v2.1.0
+ *  v2.2.0
  *
  *  Promise class for Swift.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
@@ -20,9 +20,11 @@ open class Promise<T> {
     
     public typealias Resolve = (T?) -> ()
     public typealias Reject = (Error?) -> ()
+    public typealias Final = () -> ()
     
-    private (set) var resolvers: [Resolve] = []
-    private (set) var fails: [Reject] = []
+    private var resolvers: [Resolve] = []
+    private var fails: [Reject] = []
+    private var finals: [Final] = []
     private (set) var status = PromiseStatus.pending
     
     private var value: T?
@@ -41,6 +43,7 @@ open class Promise<T> {
     }
     
     
+    
     // MARK: - Private proxies.
     private func resolveProxy(_ incoming: T?) {
         status = .resolved
@@ -49,6 +52,9 @@ open class Promise<T> {
         DispatchQueue.main.async {
             for resolve in self.resolvers {
                 resolve(incoming)
+            }
+            for final in self.finals {
+                final()
             }
             self.unbindAll()
         }
@@ -62,9 +68,13 @@ open class Promise<T> {
             for reject in self.fails {
                 reject(error)
             }
+            for final in self.finals {
+                final()
+            }
             self.unbindAll()
         }
     }
+    
     
     
     // MARK: - Then / fail
@@ -104,13 +114,28 @@ open class Promise<T> {
         return self
     }
     
+    @discardableResult
+    open func finally(_ handler: @escaping Final) -> Self {
+        if status == .pending {
+            finals.append(handler)
+        }
+        else {
+            DispatchQueue.main.async {
+                handler()
+            }
+        }
+        return self
+    }
+    
     /// Unbind all resolve and reject handlers.
     @discardableResult
     open func unbindAll() -> Self {
         resolvers.removeAll()
         fails.removeAll()
+        finals.removeAll()
         return self
     }
+    
     
     
     // MARK: - Static
