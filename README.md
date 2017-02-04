@@ -41,13 +41,13 @@ When your task failed, call the `reject` function. Same story - but with a param
 The Promise runs asynchronously using GCD. Which means there's no need to wrap your function in `dispatch_async()` yourself. But the resolvers and rejects, however, run on the main thread! 
 
 You can apply a Resolver using the Promise's instance method `.then(T?)`.
-To apply a Rejector, use the `.fail(ErrorType?)` method.
+To apply a Rejector, use the `.catch(ErrorType?)` method.
 ```swift
 Promise<Any> { resolve, reject in 
 	// Some heavy task.
 }.then { value in
 	// Do something with value.   
-}.fail { error in
+}.catch { error in
 	// Respond to the failure.
 }
 ```
@@ -65,16 +65,16 @@ func createDownloadPromise(url: String) -> Promise<NSData> {
 Promise.all([
 	createDownloadPromise("hello.jpg"),
 	createDownloadPromise("world.jpg")
-]).then{ values in
+]).then { values in
 	print("The following files have been downloaded: \(values)")
 	// Prints: Optional([Optional("hello.jpg"), Optional("world.jpg")])
-}.fail { _ in 
+}.catch { _ in 
 	print("Uh-oh! At least one Promise failed!")
 }
 ```
 
 #### Race
-
+The static `race([Promise])` method returns a new Promise which holds onto the first resolved Promise. A *race* Promise fails when all Promises called their rejector.
 
 ## Examples
 In the `/examples` folder you'll find a small collection of examples for OS X / iOS. The examples can be run in Xcode or using the `swift` command in OS X's terminal.
@@ -84,21 +84,23 @@ Here's an example of a Promise downloading an image. The example uses NSURLSessi
 ```swift
 var image: UIImage?
 
-Promise<NSData> { resolve, reject in
-	let request = NSURLRequest(URL: "someimage.jpg", cachePolicy: .ReloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 10.0)
-	let session = NSURLSession.sharedSession()
+Promise<Data> { resolve, reject in
+	var request = URLRequest(URL: URL(string: "someimage.jpg")!)
+	let session = URLSession.sharedSession()
 	session.dataTaskWithRequest(request) { data, response, err in 
-		if let dat = data, img = UIImage(data: dat) {
+		if let dat = data, let img = UIImage(data: dat) {
 			resolve(dat)
 		}
 		else {
 			reject(err)
 		}
 	}.resume()
-}.then{ data in
-	data.writeToFile("imagesFolder")
-	image = UIImage(data: data)
-}.fail{ err in 
+}.then { data in
+	if let data = data {
+		data.write(to: localURL)
+		image = UIImage(data: data)
+	}
+}.catch { err in 
 	if let error = err {
 		print("Trouble downloading image. Error: \(error)")
 	}
