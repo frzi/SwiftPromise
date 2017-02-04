@@ -73,8 +73,6 @@ Promise.all([
 #### Race
 The static `race([Promise])` method returns a new Promise which holds onto the first resolved Promise. A *race* Promise fails when all Promises called their rejector.
 
-## Examples
-In the `/examples` folder you'll find a small collection of examples for OS X / iOS. The examples can be run in Xcode or using the `swift` command in OS X's terminal.
 
 #### Downloading an image (iOS)
 Here's an example of a Promise downloading an image. The example uses NSURLSession on iOS:
