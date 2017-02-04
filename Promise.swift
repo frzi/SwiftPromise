@@ -1,6 +1,6 @@
 /**
  *  Promise.swift
- *  v2.2.0
+ *  v2.2.1
  *
  *  Promise class for Swift.
  *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
@@ -95,14 +95,13 @@ open class Promise<T> {
     /// Add resolve and reject handler.
     @discardableResult
     open func then(_ resolve: @escaping Resolve, _ reject: @escaping Reject) -> Self {
-        then(resolve)
-        fail(reject)
+        then(resolve).catch(reject)
         return self
     }
     
     /// Add reject handler.
     @discardableResult
-    open func fail(_ reject: @escaping Reject) -> Self {
+    open func `catch`(_ reject: @escaping Reject) -> Self {
         if status == .pending {
             fails.append(reject)
         }
@@ -190,7 +189,7 @@ open class Promise<T> {
                         settled = true
                         resolve(promise)
                     }
-                }.fail(fail)
+                }.catch(fail)
             }
         }
     }
