@@ -3,13 +3,10 @@ Promises in Swift
 
 [![Swift Version](https://img.shields.io/badge/swift-3.0-orange.svg)](https://swift.org)
 
-Promises are dang great in JavaScript. What's dang great as well is Swift! So with that in mind, I decided to try and replicate Promises in Swift. Trying my best to stay close to the [Promises/A+](https://promisesaplus.com/) specs. There are plenty of other Promise and Future frameworks for Swift out there already. Some quite extensive, some pretty simple. Mine is of the simple variance.
+A small and easy-to-use Promise class for Swift 3. Heavily inspired by [Promises/A+](https://promisesaplus.com/), familiar to all JavaScript developers by now.
 
 ## Install
-Just copy the Promise.swift file to your Xcode project. Yeah, that's it! The beauty of Swift!
-
-## TODO
-Make the class Swift Package Manager ready. But not until `Dispatch` becomes available on Linux.
+Just copy the Promise.swift file to your (Xcode) project. I'm not going to create a Swift Package for one single Swift file. :)
 
 ## Usage
 The Promise class is declared with a generic type. 
