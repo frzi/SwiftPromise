@@ -87,7 +87,7 @@ var image: UIImage?
 Promise<Data> { resolve, reject in
 	var request = URLRequest(URL: URL(string: "someimage.jpg")!)
 	let session = URLSession.sharedSession()
-	session.dataTaskWithRequest(request) { data, response, err in 
+	session.dataTask(with: request) { data, response, err in 
 		if let dat = data, let img = UIImage(data: dat) {
 			resolve(dat)
 		}
