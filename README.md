@@ -55,7 +55,7 @@ The methods of Promises are chainable! :-)
 
 ## Static methods
 #### All
-The static `all([Promise<T>])` method returns a new Promise watching all Promises in the given array. An *all* Promise fails the moment one of its Promises calls its rejector. When all Promises succeed, the resolver is parsed an array of `[T?]` containing all the returned values of the Promises.
+The static `all([Promise<T>])` method returns a new Promise watching all Promises in the given array. An *all* Promise fails the moment one of its Promises calls its rejector. When all Promises succeed, the resolver is parsed an array of `[T]` containing all the returned values of the Promises. Position of the values correspond to the index of their respective Promise.
 ```swift
 func createDownloadPromise(url: URL) -> Promise<(path: String, data: Data)> {
 	// ...
