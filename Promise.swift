@@ -1,13 +1,13 @@
 /**
  *  Promise.swift
- *  v2.2.1
+ *  v2.3.0
  *
  *  Promise class for Swift.
- *  Tries to follow the Promises/A+ specs. (https://promisesaplus.com/)
+ *  Inspired by the Promises/A+ specs. (https://promisesaplus.com/)
  *  A Promise holds on to a value of type `T`.
  *  Promises are executed in async mode. Whereas resolvers and rejections are executed on the main thread.
  *
- *  Created by Freek Zijlmans, 2016
+ *  Created by Freek Zijlmans, 2017
  */
 
 import Dispatch
@@ -18,19 +18,19 @@ public enum PromiseStatus {
 
 open class Promise<T> {
     
-    public typealias Resolve = (T?) -> ()
+    public typealias Resolve = (T) throws -> ()
     public typealias Reject = (Error?) -> ()
     public typealias Final = () -> ()
     
     private var resolvers: [Resolve] = []
-    private var fails: [Reject] = []
+    private var rejectors: [Reject] = []
     private var finals: [Final] = []
-    private (set) var status = PromiseStatus.pending
+    private(set) var status = PromiseStatus.pending
     
-    private var value: T?
+    private var value: T!
     private var error: Error?
     
-    public init(_ promise: @escaping (@escaping Resolve, @escaping Reject) -> ()) {
+    public init(_ promise: @escaping (@escaping (T) -> (), @escaping Reject) -> ()) {
         DispatchQueue.global(qos: .default).async {
             promise(self.resolveProxy, self.rejectProxy)
         }
@@ -43,16 +43,21 @@ open class Promise<T> {
     }
     
     
-    
     // MARK: - Private proxies.
-    private func resolveProxy(_ incoming: T?) {
+    private func resolveProxy(_ incoming: T) {
         status = .resolved
         value = incoming
         
         DispatchQueue.main.async {
-            for resolve in self.resolvers {
-                resolve(incoming)
+            do {
+                for resolve in self.resolvers {
+                    try resolve(incoming)
+                }
             }
+            catch {
+                self.callRejectors(error)
+            }
+            
             for final in self.finals {
                 final()
             }
@@ -65,7 +70,7 @@ open class Promise<T> {
         self.error = error
         
         DispatchQueue.main.async {
-            for reject in self.fails {
+            for reject in self.rejectors {
                 reject(error)
             }
             for final in self.finals {
@@ -75,9 +80,16 @@ open class Promise<T> {
         }
     }
     
+    private func callRejectors(_ error: Error?) {
+        self.error = error
+        for rejector in rejectors {
+            rejector(self.error)
+        }
+        rejectors.removeAll()
+    }
     
     
-    // MARK: - Then / fail
+    // MARK: - Then / catch / finally.
     /// Add resolve handler.
     @discardableResult
     open func then(_ resolve: @escaping Resolve) -> Self {
@@ -86,7 +98,12 @@ open class Promise<T> {
         }
         else if status == .resolved {
             DispatchQueue.main.async {
-                resolve(self.value)
+                do {
+                    try resolve(self.value)
+                }
+                catch {
+                    self.callRejectors(error)
+                }
             }
         }
         return self
@@ -103,7 +120,7 @@ open class Promise<T> {
     @discardableResult
     open func `catch`(_ reject: @escaping Reject) -> Self {
         if status == .pending {
-            fails.append(reject)
+            rejectors.append(reject)
         }
         else if status == .rejected {
             DispatchQueue.main.async {
@@ -113,6 +130,7 @@ open class Promise<T> {
         return self
     }
     
+    /// Add finally handler.
     @discardableResult
     open func finally(_ handler: @escaping Final) -> Self {
         if status == .pending {
@@ -130,34 +148,33 @@ open class Promise<T> {
     @discardableResult
     open func unbindAll() -> Self {
         resolvers.removeAll()
-        fails.removeAll()
+        rejectors.removeAll()
         finals.removeAll()
         return self
     }
     
     
-    
     // MARK: - Static
     /// Returns a Promise that watches multiple promises. Resolvers get an array of values.
-    open static func all(_ promises: [Promise]) -> Promise<[Any?]> {
-        return Promise<[Any?]> { resolve, reject in
+    open static func all(_ promises: [Promise<T>]) -> Promise<[T]> {
+        return Promise<[T]> { resolve, reject in
             var settled = false
             var success = 0
-            var returns = [Any?](repeating: nil, count: promises.count)
-            
-            func done(_ index: Int, _ incoming: Any?) {
-                success += 1
-                returns[index] = incoming
-                if success == promises.count {
-                    settled = true
-                    resolve(returns)
-                }
-            }
+            var returns = [T?](repeating: nil, count: promises.count)
             
             func failed(_ error: Error?) {
                 if !settled {
                     settled = true
                     reject(error)
+                }
+            }
+            
+            func done(_ index: Int, _ incoming: T?) {
+                success += 1
+                returns[index] = incoming
+                if success == promises.count {
+                    settled = true
+                    resolve(returns.flatMap { $0 })
                 }
             }
             
@@ -196,15 +213,15 @@ open class Promise<T> {
     
     /// Returns a Promise that resolves with the given value.
     open static func resolve(_ value: T) -> Promise<T> {
-        return Promise<T> { res, _ in
-            res(value)
+        return Promise<T> { resolve, reject in
+            resolve(value)
         }
     }
     
     /// Returns a Promise that rejects with the given error.
     open static func reject(_ reason: Error?) -> Promise<T> {
-        return Promise<T> { _, rej in
-            rej(reason)
+        return Promise<T> { _, reject in
+            reject(reason)
         }
     }
     
