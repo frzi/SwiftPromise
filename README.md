@@ -3,7 +3,7 @@ Promises in Swift
 
 [![Swift Version](https://img.shields.io/badge/swift-3.0-orange.svg)](https://swift.org)
 
-A small and easy-to-use Promise class for Swift 3. Heavily inspired by [Promises/A+](https://promisesaplus.com/), familiar to all JavaScript developers by now.
+A small, quick 'n dirty, easy-to-use Promise class for Swift. Heavily inspired by [Promises/A+](https://promisesaplus.com/), familiar to JavaScripters alike.
 
 ## Install
 Just copy the Promise.swift file to your (Xcode) project. I'm not going to create a Swift Package for one single Swift file. :)
@@ -11,34 +11,34 @@ Just copy the Promise.swift file to your (Xcode) project. I'm not going to creat
 ## Usage
 The Promise class is declared with a generic type. 
 ```swift
-class Promise <T> {}
+class Promise<T> {}
 ```
 A Promise keeps hold of a value of type `T`, which is the value the Promise (your Promise) parses to the resolver(s).
 
 
-
 #### Initialization
-You initialize a Promise with a type and a function (closure) of type `(Resolve, Reject) -> ()`.
+You initialize a Promise with a type and a function (closure) of type `(@escaping (T) -> (), @escaping (Error?) -> ()) -> ()`.
 ```swift
 let promise = Promise<String> { resolve, reject in 
-// Some heavy task.
+	// Either some heavy or async task.
 }
 ```
+
+#### Resolve and reject
+In your closure, you call the `resolve` function when your task was successful. Either give it a parameter of type `T`. 
+When your task failed, call the `reject` function. Same story - but with a parameter of type `Error?`.
 
 Resolve and Reject are declared as:
 ```swift
 typealias Resolve = (T?) -> ()
-typealias Reject = (ErrorType?) -> ()
+typealias Reject = (Error?) -> ()
 ```
-
-#### Resolve and reject
-In your closure, you call the `resolve` function when your task was successful. Either give it a parameter of type `T?` or parse `nil`. Your call! 
-When your task failed, call the `reject` function. Same story - but with a parameter of type `ErrorType?`.
 
 The Promise runs asynchronously using GCD. Which means there's no need to wrap your function in `dispatch_async()` yourself. But the resolvers and rejects, however, run on the main thread! 
 
-You can apply a Resolver using the Promise's instance method `.then(T?)`.
-To apply a Rejector, use the `.catch(ErrorType?)` method.
+You can apply a Resolver using the Promise's instance method `.then(@escaping Resolve)`.
+To apply a Rejector, use the `.catch(@escaping Reject)` method.
+Use the `.finally(@escaping Final)` method to add a handler that will always be called. Finals are called after Resolvers and/or Rejectors.
 ```swift
 Promise<Any> { resolve, reject in 
 	// Some heavy task.
@@ -46,6 +46,8 @@ Promise<Any> { resolve, reject in
 	// Do something with value.   
 }.catch { error in
 	// Respond to the failure.
+}.finally {
+	// Always called.
 }
 ```
 The methods of Promises are chainable! :-)
@@ -53,20 +55,21 @@ The methods of Promises are chainable! :-)
 
 ## Static methods
 #### All
-The static `all([Promise])` method returns a new Promise watching all Promises in the given array. An *all* Promise fails the moment one of its Promises calls its rejector. When all Promises succeed, the resolver is parsed an array of `[T?]` containing all the returned values of the Promises.
+The static `all([Promise<T>])` method returns a new Promise watching all Promises in the given array. An *all* Promise fails the moment one of its Promises calls its rejector. When all Promises succeed, the resolver is parsed an array of `[T?]` containing all the returned values of the Promises.
 ```swift
-func createDownloadPromise(url: String) -> Promise<NSData> {
+func createDownloadPromise(url: URL) -> Promise<(path: String, data: Data)> {
 	// ...
 }
 
 Promise.all([
-	createDownloadPromise("hello.jpg"),
-	createDownloadPromise("world.jpg")
+	createDownloadPromise(root + "/hello.jpg",
+	createDownloadPromise(root + "/world.jpg")
 ]).then { values in
-	print("The following files have been downloaded: \(values)")
-	// Prints: Optional([Optional("hello.jpg"), Optional("world.jpg")])
-}.catch { _ in 
-	print("Uh-oh! At least one Promise failed!")
+	for value in values {
+		try value.data.write(to: URL(fileURLWithPath: value.path))
+	}
+}.catch { error in
+	print("Uh-oh! At least one Promise failed! Error: \(error!)")
 }
 ```
 
