@@ -1,7 +1,7 @@
 Promises in Swift
 =================
 
-[![Swift Version](https://img.shields.io/badge/swift-3.0-orange.svg)](https://swift.org)
+[![Swift Version](https://img.shields.io/badge/swift-4.1-orange.svg)](https://swift.org)
 
 A small, quick 'n dirty, easy-to-use Promise class for Swift. Heavily inspired by [Promises/A+](https://promisesaplus.com/), familiar to JavaScripters alike.
 
