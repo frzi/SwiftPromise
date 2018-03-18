@@ -1,6 +1,6 @@
 /**
  *  Promise.swift
- *  v2.3.0
+ *  v2.3.2
  *
  *  Promise class for Swift.
  *  Inspired by the Promises/A+ specs. (https://promisesaplus.com/)
@@ -174,7 +174,7 @@ open class Promise<T> {
                 returns[index] = incoming
                 if success == promises.count {
                     settled = true
-                    resolve(returns.flatMap { $0 })
+                    resolve(returns.compactMap { $0 })
                 }
             }
             
