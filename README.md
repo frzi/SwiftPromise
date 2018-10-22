@@ -30,8 +30,9 @@ When your task failed, call the `reject` function. Same story - but with a param
 
 Resolve and Reject are declared as:
 ```swift
-typealias Resolve = (T?) -> ()
+typealias Resolve = (T) throws -> ()
 typealias Reject = (Error?) -> ()
+typealias Final = () -> ()
 ```
 
 The Promise runs asynchronously using GCD. Which means there's no need to wrap your function in `dispatch_async()` yourself. But the resolvers and rejects, however, run on the main thread! 
